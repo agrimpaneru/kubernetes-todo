@@ -24,22 +24,22 @@ This repository contains a simple To-Do application with a frontend, backend, an
 ### Initial State
 Before running the load test, there is only a single backend pod.
 
-<img src="image_url" alt="Single backend pod" width="500px">
+<img src="https://github.com/agrimpaneru/kubernetes-todo/blob/main/first.jpg" alt="Single backend pod" width="500px">
 
 ### Autoscaling in Action
 After executing `dos.py`, the number of backend pods increases to handle the higher load.
 
-<img src="image_url" alt="Pods autoscaling" width="500px">
+<img src="image_url" alt="https://github.com/agrimpaneru/kubernetes-todo/blob/main/task.jpg" width="500px">
 
 ### Maximum Pod Scaling
 As traffic continues, more pods are spawned dynamically.
 
-<img src="image_url" alt="Increased number of pods" width="500px">
+<img src="https://github.com/agrimpaneru/kubernetes-todo/blob/main/11.jpg" alt="Increased number of pods" width="500px">
 
 ### CPU Threshold and Scaling Behavior
 The CPU limit was set to **100m**, and once usage exceeded **50%**, a new pod was added. The maximum pod limit was configured to **10**.
 
-<img src="image_url" alt="CPU threshold exceeded" width="500px">
+<img src="https://github.com/agrimpaneru/kubernetes-todo/blob/main/33.jpg" alt="CPU threshold exceeded" width="500px">
 
 
 
