@@ -45,10 +45,9 @@ pipeline {
         
         stage('Deploy to Kubernetes') {
             steps {
-                withCredentials([string(credentialsId: 'kubeconfig-credential', variable: 'K8S_TOKEN')]) {
+               script {
                     sh """
-                        # Set kubectl context with the token
-                        kubectl config set-cluster k8s --server=${K8S_SERVER}
+                        # Use local kubeconfig
                         export KUBECONFIG=\${HOME}/.kube/config
                         
                         # Apply resources
