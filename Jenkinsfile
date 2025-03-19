@@ -4,7 +4,8 @@ pipeline {
     environment {
         NAMESPACE = "todo-app"
         BUILD_TAG = "${BUILD_NUMBER}"
-        K8S_SERVER = "https://kubernetes.default.svc"  // Replace with your Kubernetes API server
+        // Reference the credential ID where you stored the token
+        KUBERNETES_TOKEN = credentials('your-kubernetes-credential-id') // Replace with your actual credential ID
     }
     
     stages {
@@ -47,18 +48,49 @@ pipeline {
             steps {
                script {
                     sh """
-                        # Use local kubeconfig
-                        export KUBECONFIG=\${HOME}/.kube/config
+                        # Create a temporary kubeconfig file
+                        KUBECONFIG_FILE=\$(mktemp)
                         
-                        # Apply resources
-                        kubectl apply -f K8/backend-deployment.yml -n ${NAMESPACE}
-                        kubectl apply -f K8/backend-service.yml -n ${NAMESPACE}
-                        kubectl apply -f K8/frontend-deployment.yml -n ${NAMESPACE}
-                        kubectl apply -f K8/frontend-service.yml -n ${NAMESPACE}
+                        # Create kubeconfig with token authentication
+                        cat > \$KUBECONFIG_FILE << EOF
+apiVersion: v1
+kind: Config
+clusters:
+- name: minikube
+  cluster:
+    server: \$(minikube ip):8443
+    insecure-skip-tls-verify: true
+users:
+- name: jenkins
+  user:
+    token: \${KUBERNETES_TOKEN}
+contexts:
+- context:
+    cluster: minikube
+    user: jenkins
+    namespace: ${NAMESPACE}
+  name: jenkins-minikube
+current-context: jenkins-minikube
+EOF
+                        
+                        # Use the temporary kubeconfig
+                        export KUBECONFIG=\$KUBECONFIG_FILE
+                        
+                        # Make sure namespace exists
+                        kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
+                        
+                        # Apply resources 
+                        kubectl apply -f K8/backend-deployment.yml -n ${NAMESPACE} --validate=false
+                        kubectl apply -f K8/backend-service.yml -n ${NAMESPACE} --validate=false
+                        kubectl apply -f K8/frontend-deployment.yml -n ${NAMESPACE} --validate=false
+                        kubectl apply -f K8/frontend-service.yml -n ${NAMESPACE} --validate=false
                         
                         # Wait for deployments
                         kubectl rollout status deployment/flask-app -n ${NAMESPACE} --timeout=180s
                         kubectl rollout status deployment/todo-frontend -n ${NAMESPACE} --timeout=180s
+                        
+                        # Clean up temporary kubeconfig
+                        rm -f \$KUBECONFIG_FILE
                     """
                 }
             }
