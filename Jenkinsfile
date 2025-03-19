@@ -5,7 +5,7 @@ pipeline {
         NAMESPACE = "todo-app"
         BUILD_TAG = "${BUILD_NUMBER}"
         // Reference the credential ID where you stored the token
-        KUBERNETES_TOKEN = credentials('your-kubernetes-credential-id') // Replace with your actual credential ID
+        KUBERNETES_TOKEN = credentials('Jekins') // Replace with your actual credential ID
     }
     
     stages {
