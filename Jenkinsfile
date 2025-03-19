@@ -49,9 +49,7 @@ pipeline {
                     sh """
                         # Set kubectl context with the token
                         kubectl config set-cluster k8s --server=${K8S_SERVER}
-                        kubectl config set-credentials jenkins --token=${K8S_TOKEN}
-                        kubectl config set-context jenkins-context --cluster=k8s --user=jenkins --namespace=${NAMESPACE}
-                        kubectl config use-context jenkins-context
+                        export KUBECONFIG=\${HOME}/.kube/config
                         
                         # Apply resources
                         kubectl apply -f K8/backend-deployment.yml -n ${NAMESPACE}
