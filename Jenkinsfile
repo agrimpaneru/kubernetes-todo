@@ -2,9 +2,9 @@ pipeline {
     agent any
     
     environment {
-        NAMESPACE = "jenkins"
-        // Using Minikube's built-in Docker daemon
-        MINIKUBE_IP = sh(script: 'minikube ip', returnStdout: true).trim()
+        NAMESPACE = "todo-app"
+        BUILD_TAG = "${BUILD_NUMBER}"
+        KUBECONFIG = credentials('kubeconfig-credential') // Your Jenkins credential containing kubeconfig
     }
     
     stages {
@@ -14,27 +14,17 @@ pipeline {
             }
         }
         
-        stage('Connect to Minikube Docker') {
-            steps {
-                // This allows Jenkins to use Minikube's Docker daemon
-                sh '''
-                    eval $(minikube -p minikube docker-env)
-                    docker ps
-                '''
-            }
-        }
-        
         stage('Build Docker Images') {
             steps {
                 script {
-                    // Build images directly in Minikube's Docker daemon
-                    sh '''
+                    // Build images locally
+                    sh """
                         # Build backend image
-                        docker build -t flask-app:${BUILD_NUMBER} ./backend
+                        docker build -t flask-app:${BUILD_TAG} ./backend
                         
                         # Build frontend image
-                        docker build -t todo-frontend:${BUILD_NUMBER} ./frontend
-                    '''
+                        docker build -t todo-frontend:${BUILD_TAG} ./frontend
+                    """
                 }
             }
         }
@@ -43,22 +33,24 @@ pipeline {
             steps {
                 script {
                     // Update deployment files with current build image tags
-                    sh '''
-                        sed -i 's|image:.*flask-app.*|image: flask-app:${BUILD_NUMBER}|g' K8/backend-deployment.yml
-                        sed -i 's|image:.*todo-frontend.*|image: todo-frontend:${BUILD_NUMBER}|g' K8/frontend-deployment.yml
+                    sh """
+                        sed -i 's|image:.*flask-app.*|image: flask-app:${BUILD_TAG}|g' K8/backend-deployment.yml
+                        sed -i 's|image:.*todo-frontend.*|image: todo-frontend:${BUILD_TAG}|g' K8/frontend-deployment.yml
                         
-                        # Important: Add imagePullPolicy: Never to deployment files
+                        # Make sure imagePullPolicy is set to Never
                         sed -i '/image: flask-app/a\\        imagePullPolicy: Never' K8/backend-deployment.yml
                         sed -i '/image: todo-frontend/a\\        imagePullPolicy: Never' K8/frontend-deployment.yml
-                    '''
+                    """
                 }
             }
         }
         
-        stage('Deploy to Minikube') {
+        stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    sh '''
+                    sh """
+                        export KUBECONFIG=${KUBECONFIG}
+                        
                         # Create namespace if it doesn't exist
                         kubectl create namespace ${NAMESPACE} --dry-run=client -o yaml | kubectl apply -f -
                         
@@ -73,18 +65,7 @@ pipeline {
                         # Wait for deployments to be ready
                         kubectl rollout status deployment/flask-app -n ${NAMESPACE} --timeout=180s
                         kubectl rollout status deployment/todo-frontend -n ${NAMESPACE} --timeout=180s
-                    '''
-                }
-            }
-        }
-        
-        stage('Display Service URLs') {
-            steps {
-                script {
-                    sh '''
-                        echo "Backend URL: $(minikube service flask-app -n ${NAMESPACE} --url)"
-                        echo "Frontend URL: $(minikube service todo-frontend -n ${NAMESPACE} --url)"
-                    '''
+                    """
                 }
             }
         }
@@ -92,10 +73,10 @@ pipeline {
     
     post {
         failure {
-            echo 'Deployment to Minikube failed'
+            echo 'Deployment to Kubernetes failed'
         }
         success {
-            echo 'Deployment to Minikube successful'
+            echo 'Deployment to Kubernetes successful'
         }
     }
 }
